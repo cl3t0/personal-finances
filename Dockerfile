@@ -7,7 +7,12 @@ RUN apt-get update && apt-get install -y \
     curl \
     software-properties-common \
     git \
+    locales \
     && rm -rf /var/lib/apt/lists/*
+
+# Generate and set the pt_BR.UTF-8 locale
+RUN sed -i -e 's/# pt_BR.UTF-8 UTF-8/pt_BR.UTF-8 UTF-8/' /etc/locale.gen && \
+    locale-gen
 
 COPY . .
 
