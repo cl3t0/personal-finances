@@ -133,7 +133,9 @@ def simulate_property_purchase():
             f"Você terá dinheiro suficiente para comprar a propriedade à vista no mês {months_to_buy + 1} ({round((months_to_buy + 1) / 12, 2)} anos)."
         )
         st.write(
-            f"Nesse momento, você terá {locale.currency(savings[months_to_buy], grouping=True)} e a propriedade valerá {locale.currency(property_values[months_to_buy], grouping=True)}."
+            f"Nesse momento, você terá {locale.currency(savings[months_to_buy], grouping=True)} e a propriedade valerá {locale.currency(property_values[months_to_buy], grouping=True)}.".replace(
+                "R$", "R\\$"
+            )
         )
         return months_to_buy + 1
     else:
@@ -180,7 +182,7 @@ def simulate_property_purchase_financed():
     )
 
     st.write(
-        f"Primeira parcela: {locale.currency(first_installment_value, grouping=True)}"
+        f"Primeira parcela: {locale.currency(first_installment_value, grouping=True).replace('R$', 'R\\$')}"
     )
 
     if first_installment_value > monthly_savings[0]:
