@@ -46,6 +46,14 @@ with st.sidebar:
         "Taxa de inflação mensal (%)", min_value=0.0, value=0.41, step=0.01
     )
 
+    monthly_property_value_increase_when_bought = st.number_input(
+        "Taxa de aumento do valor da propriedade depois de comprada por mês (%)",
+        min_value=0.0,
+        value=0.5,
+        step=0.01,
+    )
+
+
 months_to_simulate = st.number_input(
     "Quantidade de meses a simular", min_value=1, value=120, step=1
 )
@@ -92,6 +100,9 @@ def simulate_property_purchase():
 
     savings = [float(available_cash)]
     property_values = [float(property_value)]
+    total_capital = [float(available_cash)]
+    months_to_buy = None
+    bought_property = False
 
     for i in range(months_to_simulate - 1):
         last_saving = savings[-1]
@@ -99,34 +110,40 @@ def simulate_property_purchase():
             last_saving * (1 + monthly_investment_return_rate / 100)
             + monthly_savings[i]
         )
-        savings.append(new_saving)
         last_property_value = property_values[-1]
-        new_property_value = last_property_value * (
-            1 + monthly_property_value_increase / 100
-        )
+        if bought_property:
+            new_property_value = last_property_value * (
+                1 + monthly_property_value_increase_when_bought / 100
+            )
+        else:
+            new_property_value = last_property_value * (
+                1 + monthly_property_value_increase / 100
+            )
+        if new_saving > new_property_value and not bought_property:
+            new_saving -= new_property_value
+            bought_property = True
+            months_to_buy = i
+        savings.append(new_saving)
         property_values.append(new_property_value)
-
+        total_capital.append(
+            new_saving + (new_property_value if bought_property else 0)
+        )
     df = pd.DataFrame(
         {
             "mês": months,
             "saldo": savings,
             "valor da propriedade": property_values,
+            "capital total": total_capital,
         }
     )
 
     fig = px.line(
         df,
         x="mês",
-        y=["saldo", "valor da propriedade"],
-        title="Saldo e valor da propriedade ao longo do tempo",
+        y=["saldo", "valor da propriedade", "capital total"],
+        title="Saldo, valor da propriedade e capital total ao longo do tempo",
     )
     st.plotly_chart(fig)
-
-    months_to_buy = None
-    for i, (saving, prop_value) in enumerate(zip(savings, property_values)):
-        if saving >= prop_value:
-            months_to_buy = i
-            break
 
     if months_to_buy is not None:
         st.success(
