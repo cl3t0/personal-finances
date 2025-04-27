@@ -1,16 +1,23 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import locale
+
+locale.setlocale(locale.LC_MONETARY, "pt_BR.UTF-8")
 
 st.set_page_config(
-    page_title="Property Purchase Comparison", page_icon="🏠", layout="wide"
+    page_title="Comparação de compra de imóvel à vista vs financiado",
+    page_icon="🏠",
+    layout="wide",
 )
 
 st.title("Comparação de compra de imóvel à vista vs financiado")
 st.markdown(
     """
 Este aplicativo compara as implicações financeiras de comprar uma propriedade com pagamento à vista 
-versus financiando-a. Insira seus parâmetros para ver a comparação.
+versus financiando-a. Insira seus parâmetros para ver a comparação. Estamos considerando que a propriedade
+valoriza com o tempo e que a quantidade de dinheiro que você consegue guardar aumenta com a inflação, pois
+teoricamente você recebe mais dinheiro, já que ele vale menos.
 """
 )
 
@@ -31,7 +38,7 @@ with st.sidebar:
     initial_monthly_saving = st.number_input(
         "Quantidade de dinheiro que você pode economizar por mês ($)",
         min_value=0,
-        value=1000,
+        value=2000,
         step=100,
     )
 
@@ -52,15 +59,15 @@ for _ in range(months_to_simulate - 1):
 
 df = pd.DataFrame(
     {
-        "month": months,
-        "monthly_savings": monthly_savings,
+        "mês": months,
+        "economia mensal": monthly_savings,
     }
 )
 
 fig = px.line(
     df,
-    x="month",
-    y="monthly_savings",
+    x="mês",
+    y="economia mensal",
     title="Quantidade de dinheiro que você deve guardar por mês",
 )
 st.plotly_chart(fig)
@@ -101,17 +108,17 @@ def simulate_property_purchase():
 
     df = pd.DataFrame(
         {
-            "month": months,
-            "savings": savings,
-            "property_values": property_values,
+            "mês": months,
+            "saldo": savings,
+            "valor da propriedade": property_values,
         }
     )
 
     fig = px.line(
         df,
-        x="month",
-        y=["savings", "property_values"],
-        title="Saldo e Valor da Propriedade",
+        x="mês",
+        y=["saldo", "valor da propriedade"],
+        title="Saldo e valor da propriedade ao longo do tempo",
     )
     st.plotly_chart(fig)
 
@@ -123,10 +130,10 @@ def simulate_property_purchase():
 
     if months_to_buy is not None:
         st.success(
-            f"Você terá dinheiro suficiente para comprar a propriedade à vista no mês {months_to_buy + 1}."
+            f"Você terá dinheiro suficiente para comprar a propriedade à vista no mês {months_to_buy + 1} ({round((months_to_buy + 1) / 12, 2)} anos)."
         )
         st.write(
-            f"Nesse momento, você terá R\$ {round(savings[months_to_buy], 2)} e a propriedade valerá R\$ {round(property_values[months_to_buy], 2)}."
+            f"Nesse momento, você terá {locale.currency(savings[months_to_buy], grouping=True)} e a propriedade valerá {locale.currency(property_values[months_to_buy], grouping=True)}."
         )
         return months_to_buy + 1
     else:
@@ -140,13 +147,14 @@ def simulate_property_purchase_financed():
     st.markdown("## Financiado")
 
     st.markdown(
-        "Estou levando em consideração que você vai pagar todo o valor que você consegue guardar "
-        "mensalmente, abatendo parcelas futuras. Também estou considerando que a quantia que você "
-        "consegue guardar aumenta com a inflação."
+        "Estamos levando em consideração que você vai pagar todo o valor que você consegue guardar "
+        "mensalmente, abatendo parcelas futuras. Queremos saber quanto tempo vai demorar para você "
+        "parar de pagar aluguel (se for o caso), para considerar que você vai ter mais dinheiro para "
+        "economizar e pagar a dívida."
     )
 
     number_of_installments = st.number_input(
-        "Quantidade de parcelas", min_value=1, value=120, step=1
+        "Quantidade de parcelas", min_value=1, value=270, step=1
     )
 
     tax = st.number_input(
@@ -171,11 +179,14 @@ def simulate_property_purchase_financed():
         / ((1 + tax / 100) ** number_of_installments - 1)
     )
 
-    st.write(f"Primeira parcela: R$ {round(first_installment_value, 2)}")
+    st.write(
+        f"Primeira parcela: {locale.currency(first_installment_value, grouping=True)}"
+    )
 
     if first_installment_value > monthly_savings[0]:
         st.warning(
-            f"Você não tem dinheiro suficiente para pagar a primeira parcela. Tente aumentar a quantidade de parcelas."
+            f"Você não tem dinheiro suficiente para pagar a primeira parcela. Tente aumentar a "
+            "quantidade de parcelas ou a quantidade de dinheiro que você consegue guardar por mês."
         )
         return
 
@@ -215,15 +226,15 @@ def simulate_property_purchase_financed():
             break
     df = pd.DataFrame(
         {
-            "month": months[: len(need_to_pay)],
-            "need_to_pay": need_to_pay,
+            "mês": months[: len(need_to_pay)],
+            "quantidade de dinheiro que vai faltar pagar": need_to_pay,
         }
     )
 
     fig = px.line(
         df,
-        x="month",
-        y="need_to_pay",
+        x="mês",
+        y="quantidade de dinheiro que vai faltar pagar",
         title="Quantidade de dinheiro que vai faltar pagar por mês",
     )
     st.plotly_chart(fig)
@@ -236,7 +247,9 @@ def simulate_property_purchase_financed():
             break
 
     if end_month is not None:
-        st.success(f"Você terminará de pagar a dívida no mês {end_month}.")
+        st.success(
+            f"Você terminará de pagar a dívida no mês {end_month} ({round(end_month / 12, 2)} anos)."
+        )
         return end_month
     else:
         st.warning(
@@ -257,18 +270,29 @@ if (
     st.warning("Você não conseguirá comprar a propriedade dentro do período simulado.")
 elif end_month_to_buy_property_cash is None:
     st.success(
-        f"Você terminará de pagar a dívida no mês {end_month_to_buy_property_financed}. Melhor que a vista."
+        f"Financiar é melhor que a vista. Se financiar, você terminará de pagar a dívida no mês "
+        f"{end_month_to_buy_property_financed} ({round(end_month_to_buy_property_financed / 12, 2)} anos). "
+        "Você não vai conseguir comprar a vista no período simulado."
     )
 elif end_month_to_buy_property_financed is None:
     st.success(
-        f"Você terá dinheiro suficiente para comprar a propriedade à vista no mês {end_month_to_buy_property_financed}. Melhor que financiado."
+        "Comprar à vista é melhor que financiar. Se comprar à vista, você terá dinheiro suficiente para "
+        f"comprar a propriedade no mês {end_month_to_buy_property_financed} "
+        f"({round(end_month_to_buy_property_financed / 12, 2)} anos). Você não vai conseguir comprar "
+        "a vista no período simulado."
     )
 else:
     if end_month_to_buy_property_cash < end_month_to_buy_property_financed:
         st.success(
-            f"Você terminará de comprar a propriedade no mês {end_month_to_buy_property_cash} se comprar à vista. Melhor que financiado que demoraria {end_month_to_buy_property_financed} meses."
+            f"Comprar à vista é melhor que financiar. Se comprar à vista, você terminará de comprar a propriedade "
+            f"no mês {end_month_to_buy_property_cash} ({round(end_month_to_buy_property_cash / 12, 2)} anos). "
+            f"Já se financiar, você terminará de pagar a dívida no mês {end_month_to_buy_property_financed} "
+            f"({round(end_month_to_buy_property_financed / 12, 2)} anos)."
         )
     else:
         st.success(
-            f"Você terminará de comprar a propriedade no mês {end_month_to_buy_property_financed} se financiar. Melhor que comprar à vista que demoraria {end_month_to_buy_property_cash} meses."
+            f"Financiar é melhor que comprar à vista. Se financiar, você terminará de comprar a propriedade no mês "
+            f"{end_month_to_buy_property_financed} ({round(end_month_to_buy_property_financed / 12, 2)} anos). "
+            f"Já se comprar à vista, você conseguirá comprar a propriedade no mês "
+            f"{end_month_to_buy_property_cash} ({round(end_month_to_buy_property_cash / 12, 2)} anos)."
         )
