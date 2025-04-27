@@ -35,29 +35,13 @@ with st.sidebar:
         step=100,
     )
 
-    current_rent = st.number_input(
-        "Valor do aluguel atual ($)", min_value=0, value=1000, step=100
-    )
-
     monthly_inflation_rate = st.number_input(
         "Taxa de inflação mensal (%)", min_value=0.0, value=0.41, step=0.01
     )
 
-    monthly_investment_return_rate = st.number_input(
-        "Taxa de retorno mensal da sua aplicação (%)",
-        min_value=0.0,
-        value=1.0,
-        step=0.01,
-    )
-
-    monthly_property_value_increase = st.number_input(
-        "Taxa de aumento do valor da propriedade por mês (%)",
-        min_value=0.0,
-        value=0.8,
-        step=0.01,
-    )
-
-months_to_simulate = st.number_input("Mês a simular", min_value=1, value=120, step=1)
+months_to_simulate = st.number_input(
+    "Quantidade de meses a simular", min_value=1, value=120, step=1
+)
 
 monthly_savings = [float(initial_monthly_saving)]
 months = [1]
@@ -84,6 +68,20 @@ st.plotly_chart(fig)
 
 def simulate_property_purchase():
     st.markdown("## A vista")
+
+    monthly_investment_return_rate = st.number_input(
+        "Taxa de retorno mensal da sua aplicação (%)",
+        min_value=0.0,
+        value=1.0,
+        step=0.01,
+    )
+
+    monthly_property_value_increase = st.number_input(
+        "Taxa de aumento do valor da propriedade por mês (%)",
+        min_value=0.0,
+        value=0.8,
+        step=0.01,
+    )
 
     savings = [float(available_cash)]
     property_values = [float(property_value)]
@@ -117,6 +115,26 @@ def simulate_property_purchase():
     )
     st.plotly_chart(fig)
 
+    months_to_buy = None
+    for i, (saving, prop_value) in enumerate(zip(savings, property_values)):
+        if saving >= prop_value:
+            months_to_buy = i
+            break
+
+    if months_to_buy is not None:
+        st.success(
+            f"Você terá dinheiro suficiente para comprar a propriedade à vista no mês {months_to_buy + 1}."
+        )
+        st.write(
+            f"Nesse momento, você terá R\$ {round(savings[months_to_buy], 2)} e a propriedade valerá R\$ {round(property_values[months_to_buy], 2)}."
+        )
+        return months_to_buy + 1
+    else:
+        st.warning(
+            "Dentro do período simulado, você não conseguirá juntar dinheiro suficiente para comprar a propriedade à vista."
+        )
+        return None
+
 
 def simulate_property_purchase_financed():
     st.markdown("## Financiado")
@@ -133,6 +151,10 @@ def simulate_property_purchase_financed():
 
     tax = st.number_input(
         "Taxa de juros mensal (%)", min_value=0.0, value=0.91, step=0.01
+    )
+
+    current_rent = st.number_input(
+        "Valor do aluguel atual ($)", min_value=0, value=1000, step=100
     )
 
     months_to_stop_paying_rent = st.number_input(
@@ -167,6 +189,10 @@ def simulate_property_purchase_financed():
     what_left_from_last_installment = 0
 
     for i in range(months_to_simulate - 1):
+        # Update future installment values
+        for k in range(i, len(installment_values)):
+            installment_values[k] *= 1 + tax / 100
+
         corrected_monthly_savings = (
             monthly_savings[i] + what_left_from_last_installment
             if i < months_to_stop_paying_rent
@@ -202,6 +228,47 @@ def simulate_property_purchase_financed():
     )
     st.plotly_chart(fig)
 
+    end_month = None
 
-simulate_property_purchase()
-simulate_property_purchase_financed()
+    for need_to_pay, month in zip(need_to_pay, months):
+        if need_to_pay == 0:
+            end_month = month
+            break
+
+    if end_month is not None:
+        st.success(f"Você terminará de pagar a dívida no mês {end_month}.")
+        return end_month
+    else:
+        st.warning(
+            "Você não conseguirá terminar de pagar a dívida dentro do período simulado."
+        )
+        return None
+
+
+end_month_to_buy_property_cash = simulate_property_purchase()
+end_month_to_buy_property_financed = simulate_property_purchase_financed()
+
+st.markdown("## Conclusão")
+
+if (
+    end_month_to_buy_property_cash is None
+    and end_month_to_buy_property_financed is None
+):
+    st.warning("Você não conseguirá comprar a propriedade dentro do período simulado.")
+elif end_month_to_buy_property_cash is None:
+    st.success(
+        f"Você terminará de pagar a dívida no mês {end_month_to_buy_property_financed}. Melhor que a vista."
+    )
+elif end_month_to_buy_property_financed is None:
+    st.success(
+        f"Você terá dinheiro suficiente para comprar a propriedade à vista no mês {end_month_to_buy_property_financed}. Melhor que financiado."
+    )
+else:
+    if end_month_to_buy_property_cash < end_month_to_buy_property_financed:
+        st.success(
+            f"Você terminará de comprar a propriedade no mês {end_month_to_buy_property_cash} se comprar à vista. Melhor que financiado que demoraria {end_month_to_buy_property_financed} meses."
+        )
+    else:
+        st.success(
+            f"Você terminará de comprar a propriedade no mês {end_month_to_buy_property_financed} se financiar. Melhor que comprar à vista que demoraria {end_month_to_buy_property_cash} meses."
+        )
