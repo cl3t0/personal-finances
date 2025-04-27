@@ -279,8 +279,8 @@ elif end_month_to_buy_property_cash is None:
 elif end_month_to_buy_property_financed is None:
     st.success(
         "Comprar à vista é melhor que financiar. Se comprar à vista, você terá dinheiro suficiente para "
-        f"comprar a propriedade no mês {end_month_to_buy_property_financed} "
-        f"({round(end_month_to_buy_property_financed / 12, 2)} anos). Você não vai conseguir comprar "
+        f"comprar a propriedade no mês {end_month_to_buy_property_cash} "
+        f"({round(end_month_to_buy_property_cash / 12, 2)} anos). Você não vai conseguir comprar "
         "a vista no período simulado."
     )
 else:
