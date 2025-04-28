@@ -226,7 +226,7 @@ def simulate_property_purchase_financed():
     rent = [current_rent]
     property_values = [float(property_value)]
     liquid_capital = [0.0]
-    total_capital = [0.0]
+    total_capital = [float(property_value) - sum(installment_values)]
     what_left_from_last_installment = 0
     end_month = None
 
@@ -270,7 +270,9 @@ def simulate_property_purchase_financed():
             total_capital.append(what_left_from_last_installment + new_property_value)
             break
         else:
-            total_capital.append(what_left_from_last_installment)
+            total_capital.append(
+                what_left_from_last_installment + new_property_value - new_need_to_pay
+            )
 
     if end_month is not None:
         for month in range(end_month + 1, months_to_simulate):
