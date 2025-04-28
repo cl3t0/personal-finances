@@ -46,6 +46,20 @@ with st.sidebar:
         "Taxa de inflação mensal (%)", min_value=0.0, value=0.41, step=0.01
     )
 
+    monthly_investment_return_rate = st.number_input(
+        "Taxa de retorno mensal da sua aplicação (%)",
+        min_value=0.0,
+        value=1.0,
+        step=0.01,
+    )
+
+    monthly_property_value_increase = st.number_input(
+        "Taxa de aumento do valor da propriedade por mês (%)",
+        min_value=0.0,
+        value=0.8,
+        step=0.01,
+    )
+
     monthly_property_value_increase_when_bought = st.number_input(
         "Taxa de aumento do valor da propriedade depois de comprada por mês (%)",
         min_value=0.0,
@@ -55,7 +69,7 @@ with st.sidebar:
 
 
 months_to_simulate = st.number_input(
-    "Quantidade de meses a simular", min_value=1, value=120, step=1
+    "Quantidade de meses a simular", min_value=1, value=150, step=1
 )
 
 monthly_savings = [float(initial_monthly_saving)]
@@ -83,20 +97,6 @@ st.plotly_chart(fig)
 
 def simulate_property_purchase():
     st.markdown("## A vista")
-
-    monthly_investment_return_rate = st.number_input(
-        "Taxa de retorno mensal da sua aplicação (%)",
-        min_value=0.0,
-        value=1.0,
-        step=0.01,
-    )
-
-    monthly_property_value_increase = st.number_input(
-        "Taxa de aumento do valor da propriedade por mês (%)",
-        min_value=0.0,
-        value=0.8,
-        step=0.01,
-    )
 
     savings = [float(available_cash)]
     property_values = [float(property_value)]
@@ -180,16 +180,24 @@ def simulate_property_purchase_financed():
         "Taxa de juros mensal (%)", min_value=0.0, value=0.91, step=0.01
     )
 
-    current_rent = st.number_input(
-        "Valor do aluguel atual ($)", min_value=0, value=1000, step=100
+    will_live_in_property = st.checkbox(
+        "Você vai morar no imóvel e parar de pagar aluguel?", value=False
     )
 
-    months_to_stop_paying_rent = st.number_input(
-        "Quantos meses vai demorar para parar de pagar aluguel?",
-        min_value=0,
-        value=12,
-        step=1,
-    )
+    if will_live_in_property:
+        current_rent = st.number_input(
+            "Valor do aluguel atual ($)", min_value=0, value=1000, step=100
+        )
+
+        months_to_stop_paying_rent = st.number_input(
+            "Quantos meses vai demorar para parar de pagar aluguel?",
+            min_value=0,
+            value=12,
+            step=1,
+        )
+    else:
+        current_rent = 0
+        months_to_stop_paying_rent = 0
 
     first_installment_value = (
         (property_value - available_cash)
@@ -216,22 +224,32 @@ def simulate_property_purchase_financed():
 
     need_to_pay = [sum(installment_values)]
     rent = [current_rent]
+    property_values = [float(property_value)]
+    liquid_capital = [0.0]
+    total_capital = [0.0]
     what_left_from_last_installment = 0
+    end_month = None
 
-    for i in range(months_to_simulate - 1):
+    for month in range(1, months_to_simulate):
         # Update future installment values
-        for k in range(i, len(installment_values)):
+        for k in range(month - 1, len(installment_values)):
             installment_values[k] *= 1 + tax / 100
 
-        corrected_monthly_savings = (
-            monthly_savings[i] + what_left_from_last_installment
-            if i < months_to_stop_paying_rent
-            else monthly_savings[i] + rent[i] + what_left_from_last_installment
-        )
-        corrected_monthly_savings -= installment_values[i]
-        installment_values[i] = 0
+        if month < months_to_stop_paying_rent:
+            corrected_monthly_savings = (
+                monthly_savings[month - 1] + what_left_from_last_installment
+            )
+        else:
+            corrected_monthly_savings = (
+                monthly_savings[month - 1]
+                + rent[month - 1]
+                + what_left_from_last_installment
+            )
 
-        for j in range(len(installment_values) - 1, i - 1, -1):
+        corrected_monthly_savings -= installment_values[month - 1]
+        installment_values[month - 1] = 0
+
+        for j in range(len(installment_values) - 1, month - 2, -1):
             if corrected_monthly_savings >= installment_values[j]:
                 corrected_monthly_savings -= installment_values[j]
                 installment_values[j] = 0
@@ -240,30 +258,55 @@ def simulate_property_purchase_financed():
 
         new_need_to_pay = sum(installment_values)
         need_to_pay.append(new_need_to_pay)
-        rent.append(rent[-1] * (1 + monthly_inflation_rate / 100))
+
+        new_property_value = property_values[month - 1] * (
+            1 + monthly_property_value_increase_when_bought / 100
+        )
+        property_values.append(new_property_value)
+        rent.append(rent[month - 1] * (1 + monthly_inflation_rate / 100))
+        liquid_capital.append(what_left_from_last_installment)
         if new_need_to_pay == 0:
+            end_month = month
+            total_capital.append(what_left_from_last_installment + new_property_value)
             break
+        else:
+            total_capital.append(what_left_from_last_installment)
+
+    if end_month is not None:
+        for month in range(end_month + 1, months_to_simulate):
+            corrected_monthly_savings = monthly_savings[month - 1] + rent[month - 1]
+            new_liquid_capital = (
+                corrected_monthly_savings + liquid_capital[month - 1]
+            ) * (1 + monthly_investment_return_rate / 100)
+            new_property_value = property_values[month - 1] * (
+                1 + monthly_property_value_increase_when_bought / 100
+            )
+            need_to_pay.append(0)
+            property_values.append(new_property_value)
+            rent.append(rent[month - 1] * (1 + monthly_inflation_rate / 100))
+            liquid_capital.append(new_liquid_capital)
+            total_capital.append(new_liquid_capital + new_property_value)
+
     df = pd.DataFrame(
         {
-            "mês": months[: len(need_to_pay)],
+            "mês": months,
             "quantidade de dinheiro que vai faltar pagar": need_to_pay,
+            "valor da propriedade": property_values,
+            "capital total": total_capital,
         }
     )
 
     fig = px.line(
         df,
         x="mês",
-        y="quantidade de dinheiro que vai faltar pagar",
-        title="Quantidade de dinheiro que vai faltar pagar por mês",
+        y=[
+            "quantidade de dinheiro que vai faltar pagar",
+            "valor da propriedade",
+            "capital total",
+        ],
+        title="Quantidade de dinheiro que vai faltar pagar, valor da propriedade e capital total ao longo do tempo",
     )
     st.plotly_chart(fig)
-
-    end_month = None
-
-    for need_to_pay, month in zip(need_to_pay, months):
-        if need_to_pay == 0:
-            end_month = month
-            break
 
     if end_month is not None:
         st.success(
