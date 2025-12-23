@@ -89,3 +89,22 @@ fig = px.line(
     hover_data=["future_salary"],
 )
 st.plotly_chart(fig)
+
+st.title("Cálculo com valores específicos")
+
+wanted_buy_power = st.number_input(
+    "Poder de compra desejado (R$)", value=10000, step=1000
+)
+time_to_retire = st.number_input("Anos para aposentar", value=20, step=1)
+monthly_savings, future_salary = calculate_monthly_savings(
+    wanted_buy_power,
+    time_to_retire,
+    current_capital,
+    monthly_inflation_rate,
+    monthly_investment_return_rate,
+)
+
+st.write(
+    f"Poupança mensal necessária: {locale.currency(monthly_savings, grouping=True)}"
+)
+st.write(f"Salário ao aposentar: {locale.currency(future_salary, grouping=True)}")
