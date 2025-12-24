@@ -17,6 +17,9 @@ with st.sidebar:
         value=1.0,
         step=0.01,
     )
+    consider_increasing_monthly_savings = st.checkbox(
+        "Considerar aumento da poupança mensal acompanhando a inflação?", value=False
+    )
 
 
 def calculate_monthly_savings_rate(
@@ -27,7 +30,13 @@ def calculate_monthly_savings_rate(
     m = months_to_retire
     r = monthly_investment_return_rate / 100
     i = monthly_inflation_rate / 100
-    return r / (r - i) * (1 + i) ** m / ((1 + r) ** m - 1)
+
+    factor = (
+        ((1 + r) ** (m + 1) - (1 + i) ** (m + 1)) / (r - i)
+        if consider_increasing_monthly_savings
+        else ((1 + r) ** m - 1) / r
+    )
+    return (1 + i) ** m / (r - i) / factor
 
 
 points = []
@@ -35,7 +44,6 @@ for months_to_retire in range(50 * 12, 0, -1):
     rate = calculate_monthly_savings_rate(
         months_to_retire, monthly_inflation_rate, monthly_investment_return_rate
     )
-    print(months_to_retire, rate)
     if rate > 1:
         break
     points.append((months_to_retire, rate))
