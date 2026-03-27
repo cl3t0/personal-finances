@@ -161,6 +161,13 @@ biz_cash_yr = []
 biz_equity_yr = []
 detail_rows = []
 
+# Nominal values for contextual charts (no inflation discount)
+revenue_yr_nom = []
+valuation_yr_nom = []
+equity_value_yr_nom = []
+prolabore_anual_yr_nom = []
+dividendos_yr_nom = []
+
 for i, ano in enumerate(sim_years):
     t = i / window_length
 
@@ -181,6 +188,12 @@ for i, ano in enumerate(sim_years):
 
     biz_cash_yr.append(hoje(biz_cash_anual, ano))
     biz_equity_yr.append(hoje(equity_t * valuation_t, ano))
+
+    revenue_yr_nom.append(revenue_t)
+    valuation_yr_nom.append(valuation_t)
+    equity_value_yr_nom.append(equity_t * valuation_t)
+    prolabore_anual_yr_nom.append(prolabore_anual)
+    dividendos_yr_nom.append(dividendos_t)
 
     detail_rows.append(
         {
@@ -253,6 +266,86 @@ c6.metric(
     f"Ano {breakeven_year}" if breakeven_year else "Não atingido",
     help="Primeiro ano em que o capital total do negócio supera o do empregado.",
 )
+
+# ── Chart 1: company & equity growth ─────────────────────────────────────────
+st.subheader("A empresa e o seu equity")
+st.caption("Evolução nominal da receita, do valuation e do valor do seu equity ao longo do tempo.")
+
+fig_empresa = go.Figure()
+
+fig_empresa.add_trace(go.Scatter(
+    name="Receita anual",
+    x=labels,
+    y=revenue_yr_nom,
+    mode="lines+markers",
+    line=dict(color="#2196F3", width=2),
+))
+fig_empresa.add_trace(go.Scatter(
+    name="Valuation da empresa",
+    x=labels,
+    y=valuation_yr_nom,
+    mode="lines+markers",
+    line=dict(color="#4CAF50", width=2),
+))
+fig_empresa.add_trace(go.Scatter(
+    name="Valor do seu equity",
+    x=labels,
+    y=equity_value_yr_nom,
+    mode="lines+markers",
+    line=dict(color="#FF9800", width=2),
+    fill="tozeroy",
+    fillcolor="rgba(255, 152, 0, 0.1)",
+))
+
+fig_empresa.update_layout(
+    xaxis_title="Ano (a partir de hoje)",
+    yaxis_title="Valor (R$ nominal)",
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    height=400,
+)
+
+st.plotly_chart(fig_empresa, use_container_width=True)
+
+# ── Chart 2: annual cash flows ────────────────────────────────────────────────
+st.subheader("Fluxo de caixa anual")
+st.caption(
+    "Quanto você recebe por ano em cada cenário (valores nominais). "
+    "A linha tracejada é a remuneração anual como funcionário em R\\$ de hoje."
+)
+
+emp_salario_anual_ref = remuneracao_mensal * 12
+
+fig_fluxo = go.Figure()
+
+fig_fluxo.add_trace(go.Bar(
+    name="Pró-labore",
+    x=labels,
+    y=prolabore_anual_yr_nom,
+    marker_color="#4CAF50",
+))
+fig_fluxo.add_trace(go.Bar(
+    name="Dividendos",
+    x=labels,
+    y=dividendos_yr_nom,
+    marker_color="#8BC34A",
+))
+fig_fluxo.add_trace(go.Scatter(
+    name="Remuneração como funcionário",
+    x=labels,
+    y=[emp_salario_anual_ref] * len(labels),
+    mode="lines",
+    line=dict(color="#2196F3", width=2, dash="dash"),
+))
+
+fig_fluxo.update_layout(
+    barmode="stack",
+    xaxis_title="Ano (a partir de hoje)",
+    yaxis_title="Fluxo de caixa anual (R$ nominal)",
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    height=400,
+)
+
+st.plotly_chart(fig_fluxo, use_container_width=True)
 
 # ── Capital chart ─────────────────────────────────────────────────────────────
 st.subheader("Capital acumulado por ano")
