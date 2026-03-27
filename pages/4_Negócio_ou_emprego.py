@@ -20,6 +20,11 @@ inflação para expressar tudo em R\$ de hoje e tornar a comparação justa.
 """
 )
 
+_qp = st.query_params
+
+def _get(key, default, cast=float):
+    return cast(_qp[key]) if key in _qp else default
+
 with st.sidebar:
     st.header("Parâmetros de entrada")
 
@@ -28,7 +33,7 @@ with st.sidebar:
         "Ano de início (a partir de hoje)",
         min_value=0,
         max_value=20,
-        value=2,
+        value=_get("ano_inicio", 2, int),
         step=1,
         help="Ano em que a simulação começa, contado a partir de hoje.",
     )
@@ -36,7 +41,7 @@ with st.sidebar:
         "Ano do evento de liquidez",
         min_value=1,
         max_value=30,
-        value=6,
+        value=_get("ano_fim", 6, int),
         step=1,
         help="Ano do evento de liquidez (venda, IPO, buyout), contado a partir de hoje.",
     )
@@ -46,14 +51,14 @@ with st.sidebar:
         "Participação no início da janela (%)",
         min_value=0.0,
         max_value=100.0,
-        value=10.0,
+        value=_get("eq_ini", 10.0),
         step=0.5,
     )
     equity_fim_pct = st.number_input(
         "Participação no evento de liquidez (%)",
         min_value=0.0,
         max_value=100.0,
-        value=7.0,
+        value=_get("eq_fim", 7.0),
         step=0.5,
         help="Pode ser menor que o início por diluição de rodadas futuras.",
     )
@@ -62,7 +67,7 @@ with st.sidebar:
     remuneracao_mensal = st.number_input(
         "Remuneração total mensal (R$)",
         min_value=0,
-        value=20_000,
+        value=_get("remun", 20_000, int),
         step=1_000,
         help=(
             "Inclua tudo: salário, bônus, benefícios, VR/VA, plano de saúde, FGTS, "
@@ -75,7 +80,7 @@ with st.sidebar:
         "Probabilidade de atingir o evento de liquidez (%)",
         min_value=1,
         max_value=100,
-        value=30,
+        value=_get("prob", 30, int),
         step=1,
     )
 
@@ -83,20 +88,20 @@ with st.sidebar:
     receita_inicio = st.number_input(
         "Receita anual no início da janela (R$)",
         min_value=0,
-        value=1_000_000,
+        value=_get("rec_ini", 1_000_000, int),
         step=50_000,
     )
     receita_alvo = st.number_input(
         "Receita anual no evento de liquidez (R$)",
         min_value=0,
-        value=5_000_000,
+        value=_get("rec_alvo", 5_000_000, int),
         step=100_000,
     )
     margem_lucro_pct = st.number_input(
         "Margem de lucro líquida (%)",
         min_value=0.0,
         max_value=100.0,
-        value=15.0,
+        value=_get("margem", 15.0),
         step=1.0,
         help="Percentual do lucro líquido distribuível como dividendos.",
     )
@@ -105,7 +110,7 @@ with st.sidebar:
     valuation_saida = st.number_input(
         "Valuation no evento de liquidez (R$)",
         min_value=0,
-        value=20_000_000,
+        value=_get("valuation", 20_000_000, int),
         step=500_000,
     )
 
@@ -113,13 +118,13 @@ with st.sidebar:
     prolabore_inicio = st.number_input(
         "Pró-labore mensal no início da janela (R$)",
         min_value=0,
-        value=8_000,
+        value=_get("pl_ini", 8_000, int),
         step=500,
     )
     prolabore_fim = st.number_input(
         "Pró-labore mensal no evento de liquidez (R$)",
         min_value=0,
-        value=15_000,
+        value=_get("pl_fim", 15_000, int),
         step=500,
     )
 
@@ -127,9 +132,29 @@ with st.sidebar:
     inflacao_anual_pct = st.number_input(
         "Taxa de inflação anual (%)",
         min_value=0.0,
-        value=4.5,
+        value=_get("inflacao", 4.5),
         step=0.1,
     )
+
+    st.divider()
+    if st.button("Gerar link para compartilhar", use_container_width=True):
+        st.query_params.update({
+            "ano_inicio": ano_inicio,
+            "ano_fim": ano_fim,
+            "eq_ini": equity_inicio_pct,
+            "eq_fim": equity_fim_pct,
+            "remun": remuneracao_mensal,
+            "prob": probabilidade_sucesso,
+            "rec_ini": receita_inicio,
+            "rec_alvo": receita_alvo,
+            "margem": margem_lucro_pct,
+            "valuation": valuation_saida,
+            "pl_ini": prolabore_inicio,
+            "pl_fim": prolabore_fim,
+            "inflacao": inflacao_anual_pct,
+        })
+    if _qp:
+        st.caption("Link gerado. Copie o endereço do navegador para compartilhar.")
 
 # ── Validation ────────────────────────────────────────────────────────────────
 if ano_fim <= ano_inicio:
